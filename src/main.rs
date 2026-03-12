@@ -146,20 +146,7 @@ fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> std::io::Result<()>
                         KeyCode::Char('q') => app.should_quit = true,
                         KeyCode::Tab => app.next_tab(),
                         KeyCode::BackTab => app.previous_tab(),
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            if app.selected_link_index < app.links.len() - 1 {
-                                app.selected_link_index += 1;
-                            }
-                        }
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            if app.selected_link_index > 0 {
-                                app.selected_link_index -= 1;
-                            }
-                        }
-                        KeyCode::Enter => {
-                            let url = app.links[app.selected_link_index].1;
-                            let _ = open::that(url);
-                        }
+
                         _ => {}
                     }
                 }
@@ -201,7 +188,7 @@ fn ui(frame: &mut Frame, app: &App) {
     }
 
     // --- RENDER FOOTER ---
-    let footer = Paragraph::new(" Navigate: [Tab/Shift+Tab] | [Up/Down] Select | [Enter] Open | [q] Quit ")
+    let footer = Paragraph::new(" Navigate: [Tab/Shift+Tab] Tabs | [q] Quit | Cmd/Ctrl+Click links to open ")
         .style(Style::default().fg(Color::DarkGray).bg(Color::Gray))
         .centered();
     frame.render_widget(footer, global_layout[2]);
@@ -263,18 +250,11 @@ fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     let mut links_text = vec![];
     
-    // Add interactive links section
-    for (i, (name, _url)) in app.links.iter().enumerate() {
-        let mut style = Style::default().fg(Color::Blue);
-        
-        // Highlight the currently selected link
-        if i == app.selected_link_index {
-            style = style.add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD);
-        }
-
+    // Add clickable links section - display raw URLs
+    for (name, url) in app.links.iter() {
         links_text.push(Line::from(vec![
-            Span::raw(" > "),
-            Span::styled(format!(" {} ", name), style),
+            Span::styled(format!("{}: ", name), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(*url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
         ]));
     }
     
@@ -306,7 +286,7 @@ fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     links_text.push(Line::from("> Threadly (In Dev)"));
 
     let links_widget = Paragraph::new(links_text)
-        .block(Block::default().title(" Connect (Use Arrows & Enter) ").borders(Borders::ALL));
+        .block(Block::default().title(" Connect: Click on the links to open them ").borders(Borders::ALL));
 
     frame.render_widget(links_widget, body_layout[1]);
 
@@ -345,21 +325,8 @@ fn render_projects(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
 
 
     frame.render_widget(projects_list, area);
-    let footer_text = Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit | Hosted on Oracle Cloud")
-    .style(Style::default().fg(Color::White).bg(Color::DarkGray))
-    .centered();
-        
-            let global_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Tab bar
-            Constraint::Min(0),    // Page Content
-            Constraint::Length(1), // Footer
-        ])
-        .split(area);
-    frame.render_widget(footer_text, global_layout[2]);
-
 }
+
 fn render_contact(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
     let contact_text = vec![
         Line::from("Let's connect! I am always open to discussing systems programming, AI, or new opportunities."),
@@ -392,16 +359,4 @@ fn render_contact(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
         .split(area);
 
     frame.render_widget(contact_widget, center_layout[1]);
-        let footer_text = Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit | Hosted on Oracle Cloud")
-    .style(Style::default().fg(Color::White).bg(Color::DarkGray))
-    .centered();
-                let global_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Tab bar
-            Constraint::Min(0),    // Page Content
-            Constraint::Length(1), // Footer
-        ])
-        .split(area);
-    frame.render_widget(footer_text, global_layout[2]);
 }
