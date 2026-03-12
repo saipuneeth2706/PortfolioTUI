@@ -1,18 +1,16 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use ratatui::widgets::{List, ListItem, Tabs};
 use ratatui::{
+    DefaultTerminal, Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    DefaultTerminal, Frame,
 };
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use ratatui::widgets::{Tabs, List, ListItem};
 
-
-// Enum to handle future page routing
 #[derive(Clone, Copy)]
 pub enum Page {
     Home,
@@ -21,11 +19,9 @@ pub enum Page {
 }
 
 impl Page {
-    // Helper to get all pages for the tab menu
     pub fn iterator() -> impl Iterator<Item = Page> {
         [Page::Home, Page::Projects, Page::Contact].iter().copied()
     }
-    
     pub fn title(&self) -> &'static str {
         match self {
             Page::Home => " Home ",
@@ -40,7 +36,7 @@ pub struct App {
     pub tab_index: usize,
     pub should_quit: bool,
     pub github_profile: Arc<Mutex<Option<GithubProfile>>>,
-    pub links: Vec<(&'static str, &'static str)>, 
+    pub links: Vec<(&'static str, &'static str)>,
     pub selected_link_index: usize,
 }
 
@@ -61,13 +57,11 @@ pub async fn fetch_github_profile(username: &str) -> Result<GithubProfile, Box<d
 
     let response = client
         .get(&url)
-        .header("User-Agent", "TUI-Portfolio-App") // GitHub requires a User-Agent
+        .header("User-Agent", "TUI-Portfolio-App")
         .send()
         .await?;
 
-    // Parse the JSON directly into our struct
     let profile = response.json::<GithubProfile>().await?;
-    
     Ok(profile)
 }
 
@@ -88,9 +82,8 @@ impl App {
 
             selected_link_index: 0,
         }
-        
     }
-        pub fn next_tab(&mut self) {
+    pub fn next_tab(&mut self) {
         self.tab_index = (self.tab_index + 1) % 3;
         self.update_page_from_tab();
     }
@@ -98,7 +91,7 @@ impl App {
         if self.tab_index > 0 {
             self.tab_index -= 1;
         } else {
-            self.tab_index = 2; // Loop back to the end
+            self.tab_index = 2;
         }
         self.update_page_from_tab();
     }
@@ -113,22 +106,17 @@ impl App {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Modern ratatui setup (handles raw mode and panic hooks automatically)
     let mut terminal = ratatui::init();
     let mut app = App::new();
     let profile_state = Arc::clone(&app.github_profile);
     tokio::spawn(async move {
-        // Replace with your actual GitHub username
         if let Ok(profile) = fetch_github_profile("saipuneeth2706").await {
             // Lock the mutex and update the data once it arrives
             let mut lock = profile_state.lock().unwrap();
             *lock = Some(profile);
         }
     });
-    
     let result = run_app(&mut terminal, &mut app);
-    
-    // Always restore the terminal state before exiting
     ratatui::restore();
     result.map_err(|e| e.into())
 }
@@ -137,8 +125,6 @@ fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> std::io::Result<()>
     while !app.should_quit {
         terminal.draw(|f| ui(f, app))?;
 
-        // Wait up to 100ms for a key press. 
-        // This ensures the UI redraws rapidly when the background task finishes.
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
@@ -159,78 +145,86 @@ fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> std::io::Result<()>
 fn ui(frame: &mut Frame, app: &App) {
     let area = frame.area();
 
-    // Global Layout: Tabs (top), Content (middle), Footer (bottom)
     let global_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Tab bar
-            Constraint::Min(0),    // Page Content
-            Constraint::Length(1), // Footer
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(1),
         ])
         .split(area);
 
-    // --- RENDER TABS ---
     let titles: Vec<Line> = Page::iterator().map(|p| Line::from(p.title())).collect();
     let tabs = Tabs::new(titles)
-        .block(Block::default().borders(Borders::ALL).title(" Sai Puneeth's Portfolio "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Sai Puneeth's Portfolio "),
+        )
         .select(app.tab_index)
         .style(Style::default().fg(Color::DarkGray))
-        .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-    
+        .highlight_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
+
     frame.render_widget(tabs, global_layout[0]);
 
-    // --- RENDER CURRENT PAGE ---
-    // We pass the middle chunk of the screen to the specific page renderers
     match app.current_page {
         Page::Home => render_home(frame, app, global_layout[1]),
         Page::Projects => render_projects(frame, app, global_layout[1]),
         Page::Contact => render_contact(frame, app, global_layout[1]),
     }
 
-    // --- RENDER FOOTER ---
-    let footer = Paragraph::new(" Navigate: [Tab/Shift+Tab] Tabs | [q] Quit | Cmd/Ctrl+Click links to open ")
-        .style(Style::default().fg(Color::DarkGray).bg(Color::Gray))
-        .centered();
+    let footer = Paragraph::new(
+        " Navigate: [Tab/Shift+Tab] Tabs | [q] Quit | Cmd/Ctrl+Click links to open ",
+    )
+    .style(Style::default().fg(Color::DarkGray).bg(Color::Gray))
+    .centered();
     frame.render_widget(footer, global_layout[2]);
 }
 
 fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-
-    // Split the screen vertically into a Header, Body, and Footer
     let vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Min(0),    // Main Body
-            Constraint::Length(1), // Footer
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(1),
         ])
         .split(area);
 
-    // Split the Main Body horizontally into two columns
     let body_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(60), // Left side (About)
-            Constraint::Percentage(40), // Right side (Links/GitHub)
-        ])
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(vertical_layout[1]);
 
-    // --- 1. HEADER ---
     let header_text = Paragraph::new(Line::from(vec![
-        Span::styled(" Sai Puneeth ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " Sai Puneeth ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" | "),
         Span::styled("Terminal Portfolio", Style::default().fg(Color::DarkGray)),
     ]))
-    .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)));
-    
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+
     frame.render_widget(header_text, vertical_layout[0]);
 
-    // --- 2. LEFT COLUMN (About Me) ---
     let about_text = vec![
         Line::from("Welcome to my TUI Portfolio!"),
         Line::from(""),
         Line::from("I am a final-year Computer Science and Engineering student."),
-        Line::from("I have a strong passion for low-level programming, AI, and building robust systems."),
+        Line::from(
+            "I have a strong passion for low-level programming, AI, and building robust systems.",
+        ),
         Line::from(""),
         Line::from("Currently exploring:"),
         Line::from("- Systems programming in Rust"),
@@ -245,37 +239,49 @@ fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
 
     frame.render_widget(about_widget, body_layout[0]);
 
-    // --- 3. RIGHT COLUMN (GitHub & Links) ---
     let profile_lock = app.github_profile.lock().unwrap();
 
     let mut links_text = vec![];
-    
-    // Add clickable links section - display raw URLs
+
     for (name, url) in app.links.iter() {
         links_text.push(Line::from(vec![
-            Span::styled(format!("{}: ", name), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(*url, Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED)),
+            Span::styled(
+                format!("{}: ", name),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                *url,
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::UNDERLINED),
+            ),
         ]));
     }
-    
+
     links_text.push(Line::from(""));
     links_text.push(Line::from("-------------------------"));
 
-    // Check if the GitHub profile data has arrived yet
     match &*profile_lock {
         Some(profile) => {
             links_text.push(Line::from(format!("GitHub: {}", profile.login)));
             links_text.push(Line::from(format!("Location: {}", profile.location)));
-            links_text.push(Line::from(format!("Twitter: @{}", profile.twitter_username)));
+            links_text.push(Line::from(format!(
+                "Twitter: @{}",
+                profile.twitter_username
+            )));
             if let Some(bio) = &profile.bio {
                 links_text.push(Line::from(format!("Bio: {}", bio)));
             }
         }
         _ => {
-            // Displays immediately while the network request is happening
-            links_text.push(Line::from(vec![
-                Span::styled("Fetching GitHub stats...", Style::default().fg(Color::DarkGray).add_modifier(Modifier::RAPID_BLINK))
-            ]));
+            links_text.push(Line::from(vec![Span::styled(
+                "Fetching GitHub stats...",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::RAPID_BLINK),
+            )]));
         }
     }
 
@@ -285,51 +291,77 @@ fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     links_text.push(Line::from("> Multi-threaded web server"));
     links_text.push(Line::from("> Threadly (In Dev)"));
 
-    let links_widget = Paragraph::new(links_text)
-        .block(Block::default().title(" Connect: Click on the links to open them ").borders(Borders::ALL));
+    let links_widget = Paragraph::new(links_text).block(
+        Block::default()
+            .title(" Connect: Click on the links to open them ")
+            .borders(Borders::ALL),
+    );
 
     frame.render_widget(links_widget, body_layout[1]);
 
-    // --- 4. FOOTER ---
-    let footer_text = Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit | Hosted on Oracle Cloud")
-        .style(Style::default().fg(Color::White).bg(Color::DarkGray))
-        .centered();
-        
+    let footer_text =
+        Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit | Hosted on Oracle Cloud")
+            .style(Style::default().fg(Color::White).bg(Color::DarkGray))
+            .centered();
     frame.render_widget(footer_text, vertical_layout[2]);
 }
 fn render_projects(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
     let projects = vec![
         ListItem::new(Line::from(vec![
-            Span::styled("1. Threadly", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "1. Threadly",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" - Transforming Gmail into a WhatsApp-like interface. (In Dev)"),
         ])),
         ListItem::new(Line::from("")),
         ListItem::new(Line::from(vec![
-            Span::styled("2. Rust Web Server", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "2. Rust Web Server",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" - A multi-threaded web server built from scratch to understand internals."),
         ])),
         ListItem::new(Line::from("")),
         ListItem::new(Line::from(vec![
-            Span::styled("3. TUI Portfolio", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "3. TUI Portfolio",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" - This interactive terminal application, built with Ratatui."),
         ])),
         ListItem::new(Line::from("")),
         ListItem::new(Line::from(vec![
-            Span::styled("4. Portfolio Website", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "4. Portfolio Website",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" - Personal portfolio website."),
         ])),
     ];
 
-    let projects_list = List::new(projects)
-        .block(Block::default().title(" Featured Work ").borders(Borders::ALL));
-
+    let projects_list = List::new(projects).block(
+        Block::default()
+            .title(" Featured Work ")
+            .borders(Borders::ALL),
+    );
 
     frame.render_widget(projects_list, area);
 }
 
 fn render_contact(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
     let contact_text = vec![
-        Line::from("Let's connect! I am always open to discussing systems programming, AI, or new opportunities."),
+        Line::from(
+            "Let's connect! I am always open to discussing systems programming, AI, or new opportunities.",
+        ),
         Line::from(""),
         Line::from(vec![
             Span::styled("Email:   ", Style::default().fg(Color::Cyan)),
@@ -339,16 +371,19 @@ fn render_contact(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
             Span::styled("Website: ", Style::default().fg(Color::Cyan)),
             Span::raw("portfolio-react-ulnf.onrender.com/"), // You can update this to your actual website
         ]),
-    Line::from(""),
+        Line::from(""),
         Line::from("I am also active on GitHub and LinkedIn. Check the Home tab for direct links!"),
     ];
 
     let contact_widget = Paragraph::new(contact_text)
-        .block(Block::default().title(" Get In Touch ").borders(Borders::ALL))
+        .block(
+            Block::default()
+                .title(" Get In Touch ")
+                .borders(Borders::ALL),
+        )
         .wrap(Wrap { trim: true })
         .centered();
 
-    // Create a smaller, centered box for the contact info so it doesn't stretch across the whole terminal
     let center_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
