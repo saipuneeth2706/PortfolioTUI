@@ -57,7 +57,7 @@ pub async fn fetch_github_profile(username: &str) -> Result<GithubProfile, Box<d
 
     let response = client
         .get(&url)
-        .header("User-Agent", "TUI-Portfolio-App")
+        .header("User-Agent", "TUI-Portfolio-App") // GitHub requires
         .send()
         .await?;
 
