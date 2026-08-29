@@ -1,6 +1,6 @@
 {
   "name": "portfoliotui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sai Puneeth's interactive terminal portfolio built with Rust and Ratatui",
   "license": "MIT",
   "repository": {

@@ -75,7 +75,7 @@ impl App {
             links: vec![
                 ("GitHub", "https://github.com/saipuneeth2706"),
                 ("LinkedIn", "https://linkedin.com/in/saipuneethreddypally"),
-                ("Website", "https://portfolio-react-ulnf.onrender.com/"),
+                ("Website", "https://www.saipuneeth.me"),
                 ("Twitter", "https://twitter.com/rsaipuneeth"),
                 ("Youtube", "https://youtube.com/@saipuneethreddypally"),
             ],
@@ -300,7 +300,7 @@ fn render_home(frame: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     frame.render_widget(links_widget, body_layout[1]);
 
     let footer_text =
-        Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit | Hosted on Oracle Cloud")
+        Paragraph::new(" Built with Rust and Ratatui | Press 'q' to Quit ")
             .style(Style::default().fg(Color::White).bg(Color::DarkGray))
             .centered();
     frame.render_widget(footer_text, vertical_layout[2]);
@@ -369,7 +369,7 @@ fn render_contact(frame: &mut Frame, _app: &App, area: ratatui::layout::Rect) {
         ]),
         Line::from(vec![
             Span::styled("Website: ", Style::default().fg(Color::Cyan)),
-            Span::raw("portfolio-react-ulnf.onrender.com/"), // You can update this to your actual website
+            Span::raw("https://www.saipuneeth.me"), // You can update this to your actual website
         ]),
         Line::from(""),
         Line::from("I am also active on GitHub and LinkedIn. Check the Home tab for direct links!"),
