@@ -1,0 +1,40 @@
+{
+  "name": "portfoliotui",
+  "version": "1.0.0",
+  "description": "Sai Puneeth's interactive terminal portfolio built with Rust and Ratatui",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saipuneeth2706/PortfolioTUI.git"
+  },
+  "homepage": "https://github.com/saipuneeth2706/PortfolioTUI#readme",
+  "bugs": {
+    "url": "https://github.com/saipuneeth2706/PortfolioTUI/issues"
+  },
+  "bin": {
+    "portfoliotui": "./bin/portfoliotui.js"
+  },
+  "files": [
+    "bin",
+    "index.js",
+    "postinstall.js"
+  ],
+  "scripts": {
+    "postinstall": "node postinstall.js",
+    "test": "node -e \"console.log('portfoliotui: binary installed successfully')\""
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "portfolio",
+    "tui",
+    "terminal",
+    "ratatui",
+    "rust",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
